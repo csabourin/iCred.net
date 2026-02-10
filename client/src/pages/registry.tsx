@@ -1,17 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Building2, ExternalLink, Search, ShieldCheck } from "lucide-react";
-import type { Issuer } from "@shared/schema";
+import { Building2, ExternalLink, Search, ShieldCheck, Clock } from "lucide-react";
 import { useState } from "react";
 
-function IssuerCard({ issuer }: { issuer: Issuer }) {
+interface PublicIssuer {
+  id: string;
+  name: string;
+  nameFr: string | null;
+  slug: string;
+  description: string | null;
+  descriptionFr: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  category: string | null;
+  domains: string[] | null;
+  verificationStatus: string;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+function IssuerCard({ issuer }: { issuer: PublicIssuer }) {
+  const isVerified = issuer.verificationStatus === "verified";
+
   return (
-    <Card className="hover-elevate" data-testid={`card-issuer-${issuer.id}`}>
+    <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-6">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-md bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0">
@@ -28,27 +43,38 @@ function IssuerCard({ issuer }: { issuer: Issuer }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-semibold truncate">{issuer.name}</h3>
-              {issuer.status === "active" && (
-                <Badge
-                  className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 no-default-hover-elevate no-default-active-elevate gap-0.5 text-xs"
-                >
+              {isVerified ? (
+                <Badge className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 gap-0.5 text-xs">
                   <ShieldCheck className="w-3 h-3" />
                   Verified
                 </Badge>
+              ) : (
+                <Badge variant="secondary" className="gap-0.5 text-xs">
+                  <Clock className="w-3 h-3" />
+                  {issuer.verificationStatus}
+                </Badge>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{issuer.description}</p>
+            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+              {issuer.description}
+            </p>
             <div className="flex items-center gap-2 mt-3 flex-wrap">
-              <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs font-normal">
-                {issuer.category}
-              </Badge>
+              {issuer.category && (
+                <Badge variant="outline" className="text-xs font-normal">
+                  {issuer.category}
+                </Badge>
+              )}
+              {issuer.domains?.map((d) => (
+                <Badge key={d} variant="outline" className="text-xs font-normal">
+                  {d}
+                </Badge>
+              ))}
               {issuer.website && (
                 <a
                   href={issuer.website}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs text-muted-foreground flex items-center gap-1"
-                  data-testid={`link-issuer-website-${issuer.id}`}
                 >
                   <ExternalLink className="w-3 h-3" />
                   Website
@@ -81,15 +107,15 @@ function IssuerSkeleton() {
 
 export default function Registry() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { data: issuers, isLoading } = useQuery<Issuer[]>({
+  const { data: issuers, isLoading } = useQuery<PublicIssuer[]>({
     queryKey: ["/api/issuers"],
   });
 
   const filtered = issuers?.filter(
     (i) =>
       i.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      i.description.toLowerCase().includes(searchTerm.toLowerCase())
+      (i.category || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (i.description || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -109,7 +135,6 @@ export default function Registry() {
           className="pl-10"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          data-testid="input-search-issuers"
         />
       </div>
 

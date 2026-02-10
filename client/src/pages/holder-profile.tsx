@@ -5,9 +5,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { AssuranceBadge } from "@/components/assurance-badge";
-import { CredentialStatus } from "@/components/credential-status";
-import { ProofPathBadge } from "@/components/proof-path-badge";
 import {
   Fingerprint,
   Calendar,
@@ -17,14 +14,34 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
-import type { Credential, Holder, Issuer } from "@shared/schema";
-import { CREDENTIAL_TYPES } from "@shared/schema";
+import { ASSURANCE_LEVELS, CREDENTIAL_FAMILIES } from "@shared/schema";
 
 interface HolderProfileData {
-  holder: Holder;
+  holder: {
+    pseudonym: string;
+    displayName: string | null;
+    bio: string | null;
+    avatarUrl: string | null;
+    did: string;
+    pseudonymStableSince: string;
+  };
   credentials: Array<{
-    credential: Credential;
-    issuer: Issuer | null;
+    credential: {
+      id: string;
+      domain: string;
+      scope: string;
+      family: string;
+      claims: Record<string, any>;
+      assuranceLevel: string;
+      status: string;
+      issuedAt: string;
+      expiresAt: string | null;
+    };
+    issuer: {
+      name: string;
+      slug: string;
+      verificationStatus: string;
+    } | null;
   }>;
 }
 
@@ -32,14 +49,14 @@ function CredentialCard({
   credential,
   issuer,
 }: {
-  credential: Credential;
-  issuer: Issuer | null;
+  credential: HolderProfileData["credentials"][0]["credential"];
+  issuer: HolderProfileData["credentials"][0]["issuer"];
 }) {
-  const claims = credential.claims as Array<{ text: string; detail?: string }>;
-  const typeInfo = CREDENTIAL_TYPES[credential.type as keyof typeof CREDENTIAL_TYPES];
+  const level = ASSURANCE_LEVELS[credential.assuranceLevel as keyof typeof ASSURANCE_LEVELS];
+  const familyInfo = CREDENTIAL_FAMILIES[credential.family as keyof typeof CREDENTIAL_FAMILIES];
 
   return (
-    <Card className="hover-elevate" data-testid={`card-credential-${credential.id}`}>
+    <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-6 space-y-4">
         <div className="flex items-start justify-between flex-wrap gap-2">
           <div className="flex-1 min-w-0">
@@ -47,25 +64,35 @@ function CredentialCard({
             <p className="text-sm text-muted-foreground">{credential.scope}</p>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <AssuranceBadge level={credential.assuranceLevel} />
-            <CredentialStatus status={credential.status} />
+            {level && (
+              <Badge variant="secondary" className="text-xs">
+                {level.code}
+              </Badge>
+            )}
+            <Badge
+              variant={credential.status === "active" ? "default" : "destructive"}
+              className="text-xs"
+            >
+              {credential.status}
+            </Badge>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          {typeInfo && (
-            <Badge variant="outline" className="no-default-hover-elevate no-default-active-elevate text-xs font-normal">
-              {typeInfo.label}
+          {familyInfo && (
+            <Badge variant="outline" className="text-xs font-normal">
+              {familyInfo.label}
             </Badge>
           )}
-          <ProofPathBadge path={credential.proofPath} />
         </div>
 
         <div className="space-y-1.5">
-          {claims.map((claim, i) => (
-            <div key={i} className="flex items-start gap-2 text-sm">
+          {Object.entries(credential.claims).map(([key, value]) => (
+            <div key={key} className="flex items-start gap-2 text-sm">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-              <span>{claim.text}</span>
+              <span>
+                <span className="text-muted-foreground">{key}:</span> {String(value)}
+              </span>
             </div>
           ))}
         </div>
@@ -87,10 +114,13 @@ function CredentialCard({
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3" />
                 {issuer.name}
+                {issuer.verificationStatus === "verified" && (
+                  <CheckCircle2 className="w-3 h-3 text-green-500" />
+                )}
               </span>
             )}
             <Link href={`/verify/${credential.id}`}>
-              <span className="flex items-center gap-0.5 text-primary cursor-pointer" data-testid={`link-verify-${credential.id}`}>
+              <span className="flex items-center gap-0.5 text-primary cursor-pointer">
                 <ExternalLink className="w-3 h-3" />
                 Verify
               </span>
@@ -108,6 +138,10 @@ export default function HolderProfile() {
 
   const { data, isLoading, error } = useQuery<HolderProfileData>({
     queryKey: ["/api/holders", pseudonym],
+    queryFn: () => fetch(`/api/holders/${pseudonym}`).then((r) => {
+      if (!r.ok) throw new Error("Not found");
+      return r.json();
+    }),
     enabled: !!pseudonym,
   });
 
@@ -139,8 +173,7 @@ export default function HolderProfile() {
         </p>
         <Link href="/">
           <Button variant="outline">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back Home
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back Home
           </Button>
         </Link>
       </div>
@@ -148,7 +181,7 @@ export default function HolderProfile() {
   }
 
   const { holder, credentials } = data;
-  const validCount = credentials.filter((c) => c.credential.status === "valid").length;
+  const activeCount = credentials.filter((c) => c.credential.status === "active").length;
   const initials = (holder.displayName || holder.pseudonym)
     .split(/[\s_-]+/)
     .map((w) => w[0])
@@ -156,12 +189,18 @@ export default function HolderProfile() {
     .toUpperCase()
     .slice(0, 2);
 
+  const pseudonymAge = holder.pseudonymStableSince
+    ? Math.floor(
+        (Date.now() - new Date(holder.pseudonymStableSince).getTime()) /
+          (1000 * 60 * 60 * 24 * 30)
+      )
+    : 0;
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-10">
       <Link href="/">
         <Button variant="ghost" size="sm" className="mb-4">
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Home
+          <ArrowLeft className="w-4 h-4 mr-1" /> Home
         </Button>
       </Link>
 
@@ -173,10 +212,7 @@ export default function HolderProfile() {
         </Avatar>
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold" data-testid="text-holder-name">
-              @{holder.pseudonym}
-            </h1>
-            <AssuranceBadge level={1} />
+            <h1 className="text-2xl font-bold">@{holder.pseudonym}</h1>
           </div>
           {holder.displayName && (
             <p className="text-muted-foreground">{holder.displayName}</p>
@@ -185,17 +221,23 @@ export default function HolderProfile() {
           <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
             <span className="flex items-center gap-1">
               <Shield className="w-3 h-3" />
-              Stable since {new Date(holder.stableSince).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+              Stable since{" "}
+              {new Date(holder.pseudonymStableSince).toLocaleDateString("en-US", {
+                month: "short",
+                year: "numeric",
+              })}{" "}
+              ({pseudonymAge} months)
             </span>
             <span className="flex items-center gap-1">
               <CheckCircle2 className="w-3 h-3" />
-              {validCount} active credential{validCount !== 1 ? "s" : ""}
+              {activeCount} active credential{activeCount !== 1 ? "s" : ""}
             </span>
           </div>
+          <p className="text-xs text-muted-foreground mt-1 font-mono">{holder.did}</p>
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Credentials</h2>
+      <h2 className="text-lg font-semibold mb-4">Public Credentials</h2>
 
       {credentials.length > 0 ? (
         <div className="space-y-4">
@@ -207,9 +249,9 @@ export default function HolderProfile() {
         <Card>
           <CardContent className="py-12 text-center">
             <Shield className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="font-medium">No credentials yet</p>
+            <p className="font-medium">No public credentials</p>
             <p className="text-sm text-muted-foreground mt-1">
-              This holder has not collected any verifiable credentials.
+              This holder has not made any credentials publicly visible.
             </p>
           </CardContent>
         </Card>

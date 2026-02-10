@@ -17,12 +17,15 @@ export function AssuranceBadge({
   size = "default",
   showLabel = true,
 }: {
-  level: number;
+  level: number | string;
   size?: "sm" | "default" | "lg";
   showLabel?: boolean;
 }) {
-  const info = ASSURANCE_LEVELS[level as keyof typeof ASSURANCE_LEVELS];
-  const style = LEVEL_STYLES[level] || LEVEL_STYLES[0];
+  // Accept either number (0-5) or string ("A0"-"A5")
+  const levelNum = typeof level === "string" ? parseInt(level.replace("A", ""), 10) : level;
+  const levelCode = typeof level === "string" ? level : `A${level}`;
+  const info = ASSURANCE_LEVELS[levelCode as keyof typeof ASSURANCE_LEVELS];
+  const style = LEVEL_STYLES[levelNum] || LEVEL_STYLES[0];
   const Icon = style.icon;
 
   if (!info) return null;
@@ -32,11 +35,10 @@ export function AssuranceBadge({
       className={cn(
         style.bg,
         style.text,
-        "no-default-hover-elevate no-default-active-elevate gap-1",
+        "gap-1",
         size === "sm" && "text-xs",
         size === "lg" && "text-sm px-3 py-1"
       )}
-      data-testid={`badge-assurance-${info.code}`}
     >
       <Icon className={cn(size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5")} />
       {showLabel && <span>{info.code}</span>}
@@ -49,13 +51,11 @@ export function AssuranceLevelList() {
   return (
     <div className="space-y-2">
       {Object.entries(ASSURANCE_LEVELS).map(([key, info]) => {
-        const level = parseInt(key);
-        const style = LEVEL_STYLES[level];
-        const Icon = style.icon;
+        const level = info.level;
         return (
           <div key={key} className="flex items-center gap-3">
             <AssuranceBadge level={level} size="lg" />
-            <span className="text-sm text-muted-foreground">{info.label}</span>
+            <span className="text-sm text-muted-foreground">{info.description}</span>
           </div>
         );
       })}
