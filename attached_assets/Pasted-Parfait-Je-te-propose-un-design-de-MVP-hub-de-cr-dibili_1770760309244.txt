@@ -1,0 +1,259 @@
+Parfait. Je te propose un **design de MVP “hub de crédibilité”** qui colle à ton intention (anonymat + inclusivité + vérifiabilité), *sans* te transformer en “juge universel”. L’idée centrale : **icred.net ne certifie pas “la crédibilité”**, il orchestre des **claims vérifiables** avec des **niveaux d’assurance** et une **présentation compréhensible**.
+
+---
+
+## 0) La promesse produit en une phrase
+
+**icred.net** = un portefeuille + profil public où une personne (même sous pseudo) peut présenter des **preuves cryptographiquement vérifiables** sur un sujet X, avec **révélation minimale**, **expiration/révocation**, et **plusieurs voies de preuve** (institution, communauté, portfolio, épreuve).
+Techniquement, tu t’adosses au modèle W3C des **Verifiable Credentials v2.0** ([W3C][1]), aux **Open Badges 3.0** ([imsglobal.org][2]), et aux flux OpenID Foundation **OpenID4VP / OpenID4VCI** ([openid.net][3]).
+
+---
+
+## 1) MVP : 3 types de credentials (simples, puissants, inclusifs)
+
+Tu commences avec **trois “familles”** qui couvrent la plupart des cas d’usage.
+
+### A) Attestation (issuer-based) — “Quelqu’un de reconnu atteste un fait”
+
+* Ex. “Membre en règle”, “Rôle confirmé”, “A suivi telle formation”
+* Émis par un **issuer** (organisation, association, communauté, institution)
+* **Objectif** : minimiser le subjectif. On atteste un fait + un cadre.
+
+**Pourquoi c’est idéal pour toi :** tu n’es pas l’arbitre du domaine, tu gères surtout l’authenticité de l’émetteur et le cycle de vie (revocation/expiry).
+
+### B) Compétence démontrée (assessment-based) — “A réussi une épreuve définie”
+
+* Ex. mini examen, étude de cas, revue sur rubriques, challenge pratique
+* L’épreuve doit être **définie publiquement** (critères/rubrique)
+* **Objectif** : répondre à “sait de quoi iel parle” sans exiger diplôme.
+
+**Inclusivité** : tu proposes plusieurs formats (théorie/pratique), langues, et accommodations.
+
+### C) Rigueur & méthode (process-based) — “Applique une méthode de fiabilité”
+
+* Ex. “Cite systématiquement ses sources”, “Sépare faits/opinions”, “Corrige publiquement”
+* **Objectif** : ne pas certifier “vrai”, mais certifier “rigoureux”.
+
+**C’est le pont vers ton “hub de crédibilité”** : sur les réseaux, la fiabilité perçue vient souvent de la méthode.
+
+---
+
+## 2) Niveaux d’assurance (la clé pour sortir du marécage)
+
+Tu affiches un **niveau d’assurance** explicite pour *chaque* claim.
+
+Voici une grille MVP très lisible :
+
+* **A0 — Autodéclaré** : aucun contrôle, mais format standard + sources requises
+* **A1 — Pseudonyme stable** : preuve de contrôle du compte (anti-usurpation)
+* **A2 — Preuves vérifiées** : documents/artefacts contrôlés (manuel au début)
+* **A3 — Attesté par un issuer** : signature d’un émetteur enregistré
+* **A4 — Compétence démontrée** : épreuve + score/rubrique + expiration
+* **A5 — Divulgation minimale** : attribut prouvé sans identité civile (sélectif)
+
+Tu n’as plus “crédible / non crédible”, tu as un profil : **“qu’est-ce qui est prouvé, à quel niveau, jusqu’à quand ?”**
+
+---
+
+## 3) UX MVP : une page “Verify” en 1 clic, compréhensible en 10 secondes
+
+Le public n’a pas le temps. Ta page de vérification doit répondre :
+
+1. **Qui** (pseudonyme + stabilité)
+2. **Sur quoi** (domaine + scope très précis)
+3. **Qu’est-ce qui est prouvé** (claims)
+4. **Niveau d’assurance** (A0–A5)
+5. **Quand** (date + expiration)
+6. **Par qui** (issuer / épreuve / méthode)
+7. **Statut** (valide / expiré / révoqué)
+
+### Exemple de rendu (mental model)
+
+* **Pseudonyme** : @X (stable depuis 18 mois) — A1
+* **Domaine** : “Accessibilité web — audits WCAG 2.1”
+* **Claims** :
+
+  * “A réussi l’épreuve ‘Audit checklist’ (80%)” — A4 — expire 2027-02-10
+  * “Attesté membre de la communauté Y” — A3 — valide
+  * “Méthode : citations + errata public” — A2 — revu le 2026-01-15
+
+---
+
+## 4) Architecture technique MVP (interopérable, privacy-friendly)
+
+Tu peux bâtir ça en mode “classique web + crypto signatures”, puis évoluer vers wallets. Mais si tu veux un socle solide dès le départ :
+
+### Standards de référence (socle)
+
+* **VC Data Model v2.0** (modèle des credentials/presentations) ([W3C][1])
+* **Open Badges 3.0** (pour les achievements/skills) ([imsglobal.org][2])
+* **OpenID4VCI** (émission) ([openid.net][4])
+* **OpenID4VP** (présentation) ([openid.net][3])
+
+### Composants (MVP)
+
+1. **Issuer Portal**
+
+   * gestion des émetteurs (clé de signature, politiques, révocation)
+2. **Holder Profile**
+
+   * l’utilisateur collecte ses credentials et choisit ce qu’il révèle
+3. **Verifier (icred verify page + API)**
+
+   * vérifie signature + statut (révocation/expiration)
+4. **Registry / Trust List**
+
+   * liste des issuers acceptés (avec catégories + niveaux)
+5. **Credential Status**
+
+   * endpoint pour statut (valide/révoqué) + horodatage
+
+---
+
+## 5) Anonymat + preuve : comment tu le fais sans doxxer
+
+Tu veux “prouver X sans révéler tout le reste”. Deux couches :
+
+### Couche 1 — Pseudonyme stable (anti-usurpation)
+
+* L’utilisateur prouve qu’il contrôle le pseudo via :
+
+  * signature cryptographique (clé du wallet)
+  * ou challenge sur la plateforme (post temporaire / lien “proof”)
+* Ça donne A1 : “c’est la même personne derrière @X”.
+
+### Couche 2 — Divulgation sélective (A5)
+
+Tu émets des credentials où l’utilisateur peut **révéler seulement un attribut** :
+
+* “Certification valide : oui”
+* “Membre en règle : oui”
+* “A réussi l’épreuve : oui + score”
+
+OID4VCI précise que les credentials peuvent être en plusieurs formats, incluant **SD-JWT VC** (révélation sélective) ([openid.net][4]).
+Ton “verify page” peut afficher : “Attribut prouvé (détails masqués)” + option “révéler plus” si l’utilisateur le veut.
+
+**Important :** tu dois rendre clair au public que ce qui est prouvé est un *attribut*, pas l’identité civile.
+
+---
+
+## 6) Inclusion : une politique de preuves “multi-voies” (sans relativisme mou)
+
+Tu veux être inclusif *et* rigoureux : la solution, c’est **plusieurs voies**, chacune clairement étiquetée.
+
+### “Voies” de preuve dans l’UI
+
+* **Institutionnelle** (diplômes, ordres) → A3/A5
+* **Communautaire** (aîné·e, collectif, association) → A3
+* **Portfolio** (artefacts, références) → A2
+* **Épreuve** (assessment) → A4
+* **Méthode** (rigueur) → A2
+
+Et tu ajoutes un principe : **pas une hiérarchie implicite**. On ne dit pas “institution > communauté”. On dit : “preuves différentes, pour des usages différents”.
+
+### Garde-fous anti-gatekeeping
+
+* rubriques publiques
+* auditer les biais (taux de refus par voie / langue / région)
+* accommodations (temps, format, langue)
+* comité consultatif *par domaine pilote*, pas global
+
+---
+
+## 7) Gouvernance MVP (minimum viable governance)
+
+Tu ne lances pas un “système mondial”. Tu lances une gouvernance **limitée** et **auditable**.
+
+### A) Onboarding des issuers
+
+* vérif de base (existence légale / réputation / charte)
+* clé de signature + rotation
+* règles sur conflits d’intérêts
+* capacité de révocation
+
+### B) Contestation & appel
+
+* bouton “contester”
+* fenêtre de réponse (ex. 14 jours)
+* catégories : usurpation, fraude, issuer compromis, erreur
+* journal d’audit interne + transparence “niveau stats” publique
+
+### C) Anti-abus (priorité #1)
+
+* rate limits + détection de sybil
+* monitoring de patterns d’émission suspects
+* révocation rapide + communication claire
+
+---
+
+## 8) MVP Scope : ce que tu construis en premier (et ce que tu repousses)
+
+### Ce que je ferais en MVP (8–12 semaines, sans promesse magique)
+
+1. **Attestation (A3)** + **Pseudonyme stable (A1)**
+2. Verify page ultra claire + OG preview
+3. Registry d’issuers + revocation/expiry
+4. API de vérification (lecture seule)
+5. 1 domaine pilote + 2–3 issuers pilotes (petits)
+
+### Ce que tu repousses (phase 2)
+
+* extension navigateur
+* ZK-proofs avancés
+* multi-domaines massifs
+* scoring global de crédibilité
+
+---
+
+## 9) Endpoints & données (schéma minimal, pragmatique)
+
+Sans entrer dans un standard complet, ton modèle conceptuel MVP :
+
+* **Issuer**
+
+  * id, nom, catégorie, clé(s), politique, statut, date revue
+* **Credential**
+
+  * type (attestation / assessment / process)
+  * subject (pseudonyme / DID)
+  * claim(s) (domaine, scope)
+  * assurance_level (A1..A5)
+  * issued_at, expires_at
+  * status_endpoint (valide/révoqué)
+  * evidence (optionnel, hash/URL)
+  * signature
+* **Verification**
+
+  * vérification signature
+  * vérification statut
+  * rendu humain
+
+---
+
+## 10) Ta prochaine décision “qui débloque”
+
+Choisir **un domaine pilote** où :
+
+* les claims sont faciles à définir,
+* les issuers existent,
+* les preuves sont vérifiables,
+* les risques politiques sont faibles.
+
+Vu ton profil, un pilote naturel serait **“compétences web (accessibilité / sécurité web basique / craft cms / frontend)”** parce que les artefacts et épreuves sont très “objectivables”.
+
+---
+
+### Si tu veux, on passe en mode “document exécutable”
+
+Je peux te livrer dans le prochain message :
+
+1. **Spéc produit 1 page** (personas, parcours, écrans, types de claims, A0–A5)
+2. **Schéma DB + endpoints** pour le MVP “Attestation + Pseudonyme stable”
+3. **Charte d’inclusion** (multi-voies) + **process contestation** (simple, robuste)
+
+Donne-moi juste ton choix pour le **domaine pilote #1** (même approximatif), et si tu veux commencer par **Attestation** (issuer) ou par **Épreuve** (assessment).
+
+[1]: https://www.w3.org/TR/vc-data-model-2.0/?utm_source=chatgpt.com "Verifiable Credentials Data Model v2.0"
+[2]: https://www.imsglobal.org/spec/ob/v3p0?utm_source=chatgpt.com "Open Badges Specification | IMS Global Learning ..."
+[3]: https://openid.net/specs/openid-4-verifiable-presentations-1_0.html?utm_source=chatgpt.com "OpenID for Verifiable Presentations 1.0"
+[4]: https://openid.net/specs/openid-4-verifiable-credential-issuance-1_0.html?utm_source=chatgpt.com "OpenID for Verifiable Credential Issuance 1.0"
